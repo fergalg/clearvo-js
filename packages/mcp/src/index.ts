@@ -71,7 +71,7 @@ const TOOLS = [
                 country: { type: 'string', description: 'ISO 3166-1 alpha-2' },
                 postalCode: { type: 'string' },
               },
-              required: ['country'],
+              required: ['street', 'city', 'country', 'postalCode'],
             },
           },
           required: ['name', 'taxId', 'address'],
@@ -90,7 +90,7 @@ const TOOLS = [
                 country: { type: 'string', description: 'ISO 3166-1 alpha-2' },
                 postalCode: { type: 'string' },
               },
-              required: ['country'],
+              required: ['street', 'city', 'country', 'postalCode'],
             },
           },
           required: ['name', 'address'],
@@ -104,17 +104,18 @@ const TOOLS = [
               description: { type: 'string' },
               quantity: { type: 'number' },
               unitPrice: { type: 'number', description: 'Unit price excluding tax' },
+              vatRate: { type: 'number', description: 'VAT/tax rate as a percentage (e.g. 22 for 22%). Required for standard (S) and reduced (AA) rate lines. Use 0 for zero-rated, exempt, or reverse charge lines.' },
               taxCode: {
                 type: 'string',
                 description: 'EN16931 tax code: S=standard rate, AA=reduced rate, Z=zero-rated, AE=reverse charge (non-EU→EU), K=intra-EU reverse charge, G=export (zero-rated outside scope), E=exempt',
               },
             },
-            required: ['description', 'quantity', 'unitPrice', 'taxCode'],
+            required: ['description', 'quantity', 'unitPrice', 'vatRate', 'taxCode'],
           },
         },
         totalAmount: { type: 'number', description: 'Net total excluding tax' },
         taxAmount: { type: 'number', description: 'Total tax amount' },
-        documentType: { type: 'string', description: 'Optional: "380" for invoice (default), "381" for credit note' },
+        documentType: { type: 'string', enum: ['invoice', 'credit_note', 'debit_note'], description: 'Optional: "invoice" (default), "credit_note", or "debit_note"' },
       },
       required: ['country', 'invoiceNumber', 'issueDate', 'currency', 'supplier', 'buyer', 'lines', 'totalAmount', 'taxAmount'],
     },
@@ -130,8 +131,9 @@ const TOOLS = [
       type: 'object' as const,
       properties: {
         referenceId: { type: 'string', description: 'The referenceId returned from submit_invoice' },
+        country: { type: 'string', description: 'ISO 3166-1 alpha-2 destination country of the invoice (e.g. "IT", "PL")' },
       },
-      required: ['referenceId'],
+      required: ['referenceId', 'country'],
     },
   },
   {
@@ -159,7 +161,7 @@ const TOOLS = [
         customer: {
           type: 'object',
           properties: {
-            type: { type: 'string', enum: ['B2B', 'B2C'], description: 'B2B if selling to a registered business, B2C if selling to a consumer' },
+            type: { type: 'string', enum: ['B2B', 'B2C', 'B2G'], description: 'B2B if selling to a registered business, B2C if selling to a consumer, B2G if selling to a government entity' },
             taxId: { type: 'string', description: 'Customer VAT number — triggers reverse charge determination for B2B cross-border' },
             billingAddress: {
               type: 'object',
@@ -285,14 +287,17 @@ async function handleTool(name: string, args: Record<string, unknown>): Promise<
 
     case 'poll_status': {
       const id = args.referenceId as string;
-      return callApi('GET', `/status/${encodeURIComponent(id)}`);
+      const country = args.country as string;
+      return callApi('GET', `/status?id=${encodeURIComponent(id)}&country=${encodeURIComponent(country)}`);
     }
 
     case 'calculate_tax':
       return callApi('POST', '/tax/calculate', args);
 
-    case 'validate_tax_number':
-      return callApi('POST', '/tax-numbers/validate', args);
+    case 'validate_tax_number': {
+      const { country, taxNumber } = args as { country: string; taxNumber: string };
+      return callApi('POST', '/tax-numbers/validate', { countryCode: country, taxNumber });
+    }
 
     case 'list_entities':
       return callApi('GET', '/entities');
