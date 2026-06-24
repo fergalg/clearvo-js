@@ -11,12 +11,24 @@ import type {
   TaxCalculateRequest,
   TaxCalculateResponse,
   TaxNumberValidateResponse,
+  TaxNumberBatchItem,
+  TaxNumberBatchResult,
   CountryRequirements,
   Product,
   CreateProductInput,
   UpdateProductInput,
   ListProductsParams,
   ListProductsResponse,
+  Webhook,
+  CreateWebhookInput,
+  CreateWebhookResponse,
+  ListWebhooksResponse,
+  TaxRegistration,
+  ListRegistrationsResponse,
+  AddRegistrationInput,
+  TaxCalculationSummary,
+  ListTaxCalculationsParams,
+  ListTaxCalculationsResponse,
 } from './types.js';
 import { ClearvoError } from './types.js';
 
@@ -149,5 +161,52 @@ export class ClearvoClient {
 
   getRequirements(country: string): Promise<CountryRequirements> {
     return this.request('GET', `/requirements?country=${encodeURIComponent(country)}`);
+  }
+
+  // ── Webhooks ──────────────────────────────────────────────────────────────────
+
+  listWebhooks(params: { limit?: number; page?: number } = {}): Promise<ListWebhooksResponse> {
+    const qs = new URLSearchParams();
+    if (params.limit != null) qs.set('limit', String(params.limit));
+    if (params.page  != null) qs.set('page',  String(params.page));
+    const q = qs.toString();
+    return this.request('GET', `/webhooks${q ? `?${q}` : ''}`);
+  }
+
+  createWebhook(input: CreateWebhookInput): Promise<CreateWebhookResponse> {
+    return this.request('POST', '/webhooks', input);
+  }
+
+  deleteWebhook(webhookId: string): Promise<{ ok: boolean; id: string }> {
+    return this.request('DELETE', `/webhooks?id=${encodeURIComponent(webhookId)}`);
+  }
+
+  // ── Batch TIN Validation ──────────────────────────────────────────────────────
+
+  validateTaxNumbersBatch(items: TaxNumberBatchItem[]): Promise<TaxNumberBatchResult> {
+    return this.request('POST', '/tax-numbers/validate-batch', { items });
+  }
+
+  // ── Tax Registrations ──────────────────────────────────────────────────────────
+
+  listRegistrations(entityId?: string): Promise<ListRegistrationsResponse> {
+    const qs = entityId ? `?entityId=${encodeURIComponent(entityId)}` : '';
+    return this.request('GET', `/tax/registrations${qs}`);
+  }
+
+  addRegistration(input: AddRegistrationInput): Promise<{ ok: boolean; registration?: object }> {
+    return this.request('POST', '/tax/registrations', input);
+  }
+
+  // ── Tax Calculation History ───────────────────────────────────────────────────
+
+  listTaxCalculations(params: ListTaxCalculationsParams = {}): Promise<ListTaxCalculationsResponse> {
+    const qs = new URLSearchParams();
+    if (params.entityId) qs.set('entityId', params.entityId);
+    if (params.country)  qs.set('country',  params.country);
+    if (params.limit != null) qs.set('limit', String(params.limit));
+    if (params.page  != null) qs.set('page',  String(params.page));
+    const q = qs.toString();
+    return this.request('GET', `/tax/calculate${q ? `?${q}` : ''}`);
   }
 }

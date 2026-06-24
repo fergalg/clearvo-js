@@ -337,6 +337,127 @@ const TOOLS = [
       required: ['productId'],
     },
   },
+  {
+    name: 'list_webhooks',
+    description:
+      'List registered webhook endpoints for this account. ' +
+      'Shows URLs, subscribed event types, and entity scope for each webhook.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        limit: { type: 'number', description: 'Results per page (default 50, max 200)' },
+        page: { type: 'number', description: 'Page number, 1-based (default 1)' },
+      },
+    },
+  },
+  {
+    name: 'create_webhook',
+    description:
+      'Register a new webhook endpoint to receive real-time invoice status events. ' +
+      'The response includes a signing secret (shown once — store it securely) used to verify ' +
+      'payload authenticity via HMAC-SHA256. ' +
+      'Supported events: invoice.accepted, invoice.rejected, invoice.duplicate, ' +
+      'invoice.undelivered, invoice.pending, * (all events).',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        url: { type: 'string', description: 'HTTPS endpoint URL to deliver events to' },
+        events: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Event types to subscribe to. Use ["*"] for all events. Options: invoice.accepted, invoice.rejected, invoice.duplicate, invoice.undelivered, invoice.pending',
+        },
+      },
+      required: ['url'],
+    },
+  },
+  {
+    name: 'delete_webhook',
+    description: 'Deactivate a webhook endpoint by ID. The webhook will stop receiving events immediately.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        webhookId: { type: 'string', description: 'The webhook ID to deactivate (from list_webhooks or create_webhook)' },
+      },
+      required: ['webhookId'],
+    },
+  },
+  {
+    name: 'validate_tax_numbers_batch',
+    description:
+      'Validate up to 20 tax/VAT numbers in a single request. ' +
+      'More efficient than calling validate_tax_number individually when processing a list of counterparties. ' +
+      'Each result includes format validity, authority check status, and registered business name where available.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        items: {
+          type: 'array',
+          description: 'Up to 20 tax numbers to validate',
+          items: {
+            type: 'object',
+            properties: {
+              countryCode: { type: 'string', description: 'ISO 3166-1 alpha-2 country code (e.g. "DE", "GB")' },
+              taxNumber: { type: 'string', description: 'The tax/VAT number to validate. Include country prefix for EU numbers.' },
+            },
+            required: ['countryCode', 'taxNumber'],
+          },
+        },
+      },
+      required: ['items'],
+    },
+  },
+  {
+    name: 'list_registrations',
+    description:
+      'List the tax registrations and obligations for an entity: VAT registrations by country, ' +
+      'OSS/IOSS scheme registrations, and compliance threshold status. ' +
+      'Use this to see where an entity is registered and whether it is compliant, approaching threshold, or exposed.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        entityId: { type: 'string', description: 'Entity ID to query. Required for account-scoped keys; omit for entity-scoped keys.' },
+      },
+    },
+  },
+  {
+    name: 'add_registration',
+    description:
+      'Record a new tax registration for an entity: VAT, IOSS, OSS, VOEC, or NON_UNION_OSS. ' +
+      'Use this when you receive a new VAT registration number from a tax authority and want to ' +
+      'record it so Clearvo can apply the correct treatment in tax calculations.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        type: {
+          type: 'string',
+          enum: ['VAT', 'IOSS', 'UNION_OSS', 'NON_UNION_OSS', 'VOEC'],
+          description: 'Registration type. VAT=standard per-country, IOSS=EU Import One-Stop Shop, UNION_OSS=EU OSS for registered businesses, NON_UNION_OSS=EU OSS for non-EU sellers, VOEC=Norway digital goods',
+        },
+        country: { type: 'string', description: 'ISO 3166-1 alpha-2 country code. Not required for IOSS (applies EU-wide).' },
+        taxNumber: { type: 'string', description: 'The registration or VAT number issued by the authority' },
+        entityId: { type: 'string', description: 'Entity to register. Required for account-scoped keys; omit for entity-scoped keys.' },
+      },
+      required: ['type', 'taxNumber'],
+    },
+  },
+  {
+    name: 'list_tax_calculations',
+    description:
+      'List committed tax calculations (those created with commit=true). ' +
+      'Shows jurisdiction, amounts, tax totals, and customer type for each calculation. ' +
+      'Use this to audit the calculation history, reconcile totals, or inspect calculations ' +
+      'that fed into compliance threshold monitoring.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        entityId: { type: 'string', description: 'Filter by entity ID. Required for account-scoped keys.' },
+        country: { type: 'string', description: 'Filter by jurisdiction country code (e.g. "DE", "US")' },
+        limit: { type: 'number', description: 'Results per page (default 25, max 100)' },
+        page: { type: 'number', description: 'Page number, 1-based (default 1)' },
+      },
+    },
+  },
 ] as const;
 
 async function handleTool(name: string, args: Record<string, unknown>): Promise<unknown> {
@@ -402,6 +523,45 @@ async function handleTool(name: string, args: Record<string, unknown>): Promise<
     case 'update_product': {
       const { productId, ...updates } = args as { productId: string } & Record<string, unknown>;
       return callApi('PATCH', `/products/${encodeURIComponent(productId)}`, updates);
+    }
+
+    case 'list_webhooks': {
+      const qs = new URLSearchParams();
+      if (args.limit) qs.set('limit', String(args.limit));
+      if (args.page)  qs.set('page',  String(args.page));
+      const q = qs.toString();
+      return callApi('GET', `/webhooks${q ? `?${q}` : ''}`);
+    }
+
+    case 'create_webhook':
+      return callApi('POST', '/webhooks', args);
+
+    case 'delete_webhook': {
+      const webhookId = args.webhookId as string;
+      return callApi('DELETE', `/webhooks?id=${encodeURIComponent(webhookId)}`);
+    }
+
+    case 'validate_tax_numbers_batch':
+      return callApi('POST', '/tax-numbers/validate-batch', args);
+
+    case 'list_registrations': {
+      const qs = new URLSearchParams();
+      if (args.entityId) qs.set('entityId', args.entityId as string);
+      const q = qs.toString();
+      return callApi('GET', `/tax/registrations${q ? `?${q}` : ''}`);
+    }
+
+    case 'add_registration':
+      return callApi('POST', '/tax/registrations', args);
+
+    case 'list_tax_calculations': {
+      const qs = new URLSearchParams();
+      if (args.entityId) qs.set('entityId', args.entityId as string);
+      if (args.country)  qs.set('country',  args.country  as string);
+      if (args.limit)    qs.set('limit',    String(args.limit));
+      if (args.page)     qs.set('page',     String(args.page));
+      const q = qs.toString();
+      return callApi('GET', `/tax/calculate${q ? `?${q}` : ''}`);
     }
 
     default:
