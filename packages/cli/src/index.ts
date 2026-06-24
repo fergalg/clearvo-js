@@ -242,6 +242,107 @@ products
     print(result, !!opts.pretty);
   });
 
+// ── clearvo webhooks ────────────────────────────────────────────────────────
+const webhooks = program.command('webhooks').description('Manage webhook endpoints');
+
+webhooks
+  .command('list')
+  .description('List registered webhook endpoints')
+  .option('--limit <n>', 'Results per page', '50')
+  .option('--page <n>', 'Page number', '1')
+  .option('--pretty', 'Pretty-print JSON output')
+  .action(async (opts: { limit: string; page: string; pretty?: boolean }) => {
+    const qs = new URLSearchParams({ limit: opts.limit, page: opts.page });
+    const result = await api('GET', `/webhooks?${qs}`);
+    print(result, !!opts.pretty);
+  });
+
+webhooks
+  .command('create')
+  .description('Register a new webhook endpoint')
+  .requiredOption('--url <url>', 'HTTPS endpoint URL to deliver events to')
+  .option('--events <events>', 'Comma-separated event types (default: *). Options: invoice.accepted,invoice.rejected,invoice.duplicate,invoice.undelivered,invoice.pending', '*')
+  .option('--pretty', 'Pretty-print JSON output')
+  .action(async (opts: { url: string; events: string; pretty?: boolean }) => {
+    const events = opts.events.split(',').map(e => e.trim()).filter(Boolean);
+    const result = await api('POST', '/webhooks', { url: opts.url, events });
+    print(result, !!opts.pretty);
+    const r = result as Record<string, unknown>;
+    if (r.secret) {
+      console.error('\nSave this webhook secret — it will not be shown again:');
+      console.error(r.secret as string);
+    }
+  });
+
+webhooks
+  .command('delete <id>')
+  .description('Deactivate a webhook endpoint')
+  .option('--pretty', 'Pretty-print JSON output')
+  .action(async (id: string, opts: { pretty?: boolean }) => {
+    const result = await api('DELETE', `/webhooks?id=${encodeURIComponent(id)}`);
+    print(result, !!opts.pretty);
+  });
+
+// ── clearvo validate-tin-batch ───────────────────────────────────────────────
+program
+  .command('validate-tin-batch <file>')
+  .description('Validate up to 20 tax numbers from a JSON file (array of {countryCode, taxNumber})')
+  .option('--pretty', 'Pretty-print JSON output')
+  .action(async (file: string, opts: { pretty?: boolean }) => {
+    const items = JSON.parse(readFileSync(file, 'utf8')) as unknown[];
+    const result = await api('POST', '/tax-numbers/validate-batch', { items });
+    print(result, !!opts.pretty);
+  });
+
+// ── clearvo registrations ───────────────────────────────────────────────────
+const registrations = program.command('registrations').description('Manage tax registrations');
+
+registrations
+  .command('list')
+  .description('List tax registrations and obligations for an entity')
+  .option('--entity <entityId>', 'Entity ID (required for account-scoped keys)')
+  .option('--pretty', 'Pretty-print JSON output')
+  .action(async (opts: { entity?: string; pretty?: boolean }) => {
+    const qs = opts.entity ? `?entityId=${encodeURIComponent(opts.entity)}` : '';
+    const result = await api('GET', `/tax/registrations${qs}`);
+    print(result, !!opts.pretty);
+  });
+
+registrations
+  .command('add')
+  .description('Record a new tax registration (VAT, IOSS, OSS, VOEC)')
+  .requiredOption('--type <type>', 'Registration type: VAT, IOSS, UNION_OSS, NON_UNION_OSS, VOEC')
+  .requiredOption('--number <taxNumber>', 'The registration number issued by the authority')
+  .option('--country <code>', 'ISO 3166-1 alpha-2 country code (not required for IOSS)')
+  .option('--entity <entityId>', 'Entity to register (required for account-scoped keys)')
+  .option('--pretty', 'Pretty-print JSON output')
+  .action(async (opts: { type: string; number: string; country?: string; entity?: string; pretty?: boolean }) => {
+    const body: Record<string, string> = { type: opts.type.toUpperCase(), taxNumber: opts.number };
+    if (opts.country) body.country = opts.country.toUpperCase();
+    if (opts.entity) body.entityId = opts.entity;
+    const result = await api('POST', '/tax/registrations', body);
+    print(result, !!opts.pretty);
+  });
+
+// ── clearvo calculations ─────────────────────────────────────────────────────
+const calculations = program.command('calculations').description('View committed tax calculation history');
+
+calculations
+  .command('list')
+  .description('List committed tax calculations')
+  .option('--entity <entityId>', 'Filter by entity ID')
+  .option('--country <code>', 'Filter by jurisdiction country (e.g. DE, US)')
+  .option('--limit <n>', 'Results per page', '25')
+  .option('--page <n>', 'Page number', '1')
+  .option('--pretty', 'Pretty-print JSON output')
+  .action(async (opts: { entity?: string; country?: string; limit: string; page: string; pretty?: boolean }) => {
+    const qs = new URLSearchParams({ limit: opts.limit, page: opts.page });
+    if (opts.entity)  qs.set('entityId', opts.entity);
+    if (opts.country) qs.set('country',  opts.country);
+    const result = await api('GET', `/tax/calculate?${qs}`);
+    print(result, !!opts.pretty);
+  });
+
 program.parseAsync(process.argv).catch((err: unknown) => {
   console.error(err instanceof Error ? err.message : String(err));
   process.exit(1);

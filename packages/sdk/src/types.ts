@@ -194,6 +194,100 @@ export interface ListProductsResponse {
   total: number;
 }
 
+export interface Webhook {
+  id: string;
+  url: string;
+  events: string[];
+  entityId: string | null;
+  active: boolean;
+  createdAt: string;
+}
+
+export interface CreateWebhookInput {
+  url: string;
+  events?: string[];
+}
+
+export interface CreateWebhookResponse extends Webhook {
+  secret: string;
+}
+
+export interface ListWebhooksResponse {
+  webhooks: Webhook[];
+  pagination: { total: number; page: number; limit: number; pages: number; hasNext: boolean; hasPrev: boolean };
+}
+
+export interface TaxNumberBatchItem {
+  countryCode: string;
+  taxNumber: string;
+}
+
+export interface TaxNumberBatchResult {
+  results: Array<{ index: number; countryCode: string; taxNumber: string; format: { valid: boolean; error?: string }; authority: { checked: boolean; valid?: boolean; name?: string }; error?: string }>;
+  total: number;
+  valid: number;
+  invalid: number;
+  errors: number;
+  sandbox: boolean;
+}
+
+export interface TaxRegistration {
+  country: string;
+  scheme: string;
+  taxNumber: string | null;
+  taxType: string | null;
+  registrationStatus: string;
+  obligationStatus: string | null;
+  threshold: { amount: number; currency: string } | null;
+  currentPeriodAmount: number | null;
+}
+
+export interface ListRegistrationsResponse {
+  ok: boolean;
+  entityId: string;
+  entityName: string;
+  homeCountry: string;
+  iossNumber: string | null;
+  registrations: TaxRegistration[];
+}
+
+export interface AddRegistrationInput {
+  type: 'VAT' | 'IOSS' | 'UNION_OSS' | 'NON_UNION_OSS' | 'VOEC';
+  country?: string;
+  taxNumber?: string;
+  iossNumber?: string;
+  entityId?: string;
+}
+
+export interface TaxCalculationSummary {
+  id: string;
+  entityId: string | null;
+  jurisdictionCountry: string;
+  jurisdictionRegion: string | null;
+  transactionType: string;
+  totalAmount: number | null;
+  totalTax: number | null;
+  currency: string | null;
+  customerType: string | null;
+  merchantRef: string | null;
+  degraded: boolean;
+  resolvedAt: string;
+  createdAt: string;
+  sandbox: boolean;
+}
+
+export interface ListTaxCalculationsParams {
+  entityId?: string;
+  country?: string;
+  limit?: number;
+  page?: number;
+}
+
+export interface ListTaxCalculationsResponse {
+  calculations: TaxCalculationSummary[];
+  pagination: { page: number; limit: number; total: number };
+}
+
 export class ClearvoError extends Error {
   constructor(
     public readonly status: number,
