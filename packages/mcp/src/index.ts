@@ -5,6 +5,7 @@ import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js';
+import { createHash } from 'crypto';
 
 const API_KEY = process.env.CLEARVO_API_KEY;
 const BASE_URL = process.env.CLEARVO_BASE_URL ?? 'https://api.clearvo.io/v1';
@@ -17,13 +18,19 @@ if (!API_KEY) {
   process.exit(1);
 }
 
-async function callApi(method: string, path: string, body?: unknown): Promise<unknown> {
+async function callApi(
+  method: string,
+  path: string,
+  body?: unknown,
+  extraHeaders?: Record<string, string>
+): Promise<unknown> {
   const res = await fetch(`${BASE_URL}${path}`, {
     method,
     headers: {
       'x-api-key': API_KEY!,
       'Content-Type': 'application/json',
       'Accept': 'application/json',
+      ...extraHeaders,
     },
     body: body !== undefined ? JSON.stringify(body) : undefined,
   });
@@ -71,7 +78,7 @@ const TOOLS = [
                 country: { type: 'string', description: 'ISO 3166-1 alpha-2' },
                 postalCode: { type: 'string' },
               },
-              required: ['street', 'city', 'country', 'postalCode'],
+              required: ['city', 'country'],
             },
           },
           required: ['name', 'taxId', 'address'],
@@ -90,7 +97,7 @@ const TOOLS = [
                 country: { type: 'string', description: 'ISO 3166-1 alpha-2' },
                 postalCode: { type: 'string' },
               },
-              required: ['street', 'city', 'country', 'postalCode'],
+              required: ['city', 'country'],
             },
           },
           required: ['name', 'address'],
@@ -124,7 +131,7 @@ const TOOLS = [
     name: 'poll_status',
     description:
       'Check the clearance or submission status of an invoice previously submitted via submit_invoice. ' +
-      'Returns status (PENDING, ACCEPTED, REJECTED, FAILED) and the authority clearance code when accepted. ' +
+      'Returns clearanceStatus: PENDING, ACCEPTED, REJECTED, DUPLICATE, UNROUTABLE, DELIVERED, or UNDELIVERED. ' +
       'For Italy SDI, Poland KSeF, Romania ANAF: poll every 30 seconds for up to 5 minutes after submission. ' +
       'For Spain SII and real-time reporting countries (Hungary, Greece): status is usually immediate.',
     inputSchema: {
@@ -270,7 +277,7 @@ const TOOLS = [
         country: { type: 'string', description: 'Filter by country code (e.g. "IT", "PL")' },
         status: {
           type: 'string',
-          enum: ['PENDING', 'ACCEPTED', 'REJECTED', 'FAILED'],
+          enum: ['PENDING', 'ACCEPTED', 'REJECTED', 'DUPLICATE', 'UNROUTABLE', 'DELIVERED', 'UNDELIVERED'],
           description: 'Filter by clearance status',
         },
         limit: { type: 'number', description: 'Results per page (default 25, max 100)' },
@@ -278,12 +285,72 @@ const TOOLS = [
       },
     },
   },
+  {
+    name: 'list_products',
+    description:
+      'List the product catalogue for an entity. ' +
+      'Products store pre-classified tax categories so you do not need to re-classify on every invoice. ' +
+      'Returns product IDs, names, SKUs, and their assigned tax category slugs.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        entityId: { type: 'string', description: 'Entity ID to list products for. Omit to use the default entity for this API key.' },
+        limit: { type: 'number', description: 'Results per page (default 25, max 100)' },
+        page: { type: 'number', description: 'Page number, 1-based (default 1)' },
+      },
+    },
+  },
+  {
+    name: 'create_product',
+    description:
+      'Create a product in the catalogue. ' +
+      'Storing a taxCategory on the product means calculate_tax and submit_invoice can reference the product ' +
+      'by SKU and skip AI re-classification every time. ' +
+      'Returns the new product ID.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        name: { type: 'string', description: 'Product or service name (e.g. "Annual SaaS Subscription")' },
+        sku: { type: 'string', description: 'Your internal SKU or product code' },
+        description: { type: 'string', description: 'Optional longer description' },
+        taxCategory: { type: 'string', description: 'Tax category slug (e.g. saas_business, digital_general, physical_goods_general, professional_services). Use calculate_tax first to discover the right slug.' },
+        entityId: { type: 'string', description: 'Entity to create the product under. Omit to use the default entity for this API key.' },
+      },
+      required: ['name'],
+    },
+  },
+  {
+    name: 'update_product',
+    description:
+      'Update a product — most commonly to set or correct its tax category. ' +
+      'Call this after using calculate_tax to discover the right taxCategory slug for a product, ' +
+      'so future transactions use the stored category without re-classification.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        productId: { type: 'string', description: 'The product ID to update (from list_products or create_product)' },
+        name: { type: 'string', description: 'Updated product name' },
+        sku: { type: 'string', description: 'Updated SKU' },
+        description: { type: 'string', description: 'Updated description' },
+        taxCategory: { type: 'string', description: 'Updated tax category slug' },
+      },
+      required: ['productId'],
+    },
+  },
 ] as const;
 
 async function handleTool(name: string, args: Record<string, unknown>): Promise<unknown> {
   switch (name) {
-    case 'submit_invoice':
-      return callApi('POST', '/send', args);
+    case 'submit_invoice': {
+      // Derive a stable idempotency key from invoice identity fields
+      const idempotencyKey = createHash('sha256')
+        .update(`${args.invoiceNumber ?? ''}|${args.country ?? ''}|${args.issueDate ?? ''}`)
+        .digest('hex')
+        .slice(0, 64);
+      // Default documentType to 'invoice' if not provided
+      const body = { documentType: 'invoice', ...args };
+      return callApi('POST', '/send', body, { 'x-idempotency-key': idempotencyKey });
+    }
 
     case 'poll_status': {
       const id = args.referenceId as string;
@@ -318,6 +385,23 @@ async function handleTool(name: string, args: Record<string, unknown>): Promise<
       if (args.page)    qs.set('page',    String(args.page));
       const q = qs.toString();
       return callApi('GET', `/invoices${q ? `?${q}` : ''}`);
+    }
+
+    case 'list_products': {
+      const qs = new URLSearchParams();
+      if (args.entityId) qs.set('entityId', args.entityId as string);
+      if (args.limit)    qs.set('limit',    String(args.limit));
+      if (args.page)     qs.set('page',     String(args.page));
+      const q = qs.toString();
+      return callApi('GET', `/products${q ? `?${q}` : ''}`);
+    }
+
+    case 'create_product':
+      return callApi('POST', '/products', args);
+
+    case 'update_product': {
+      const { productId, ...updates } = args as { productId: string } & Record<string, unknown>;
+      return callApi('PATCH', `/products/${encodeURIComponent(productId)}`, updates);
     }
 
     default:

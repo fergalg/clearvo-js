@@ -12,6 +12,11 @@ import type {
   TaxCalculateResponse,
   TaxNumberValidateResponse,
   CountryRequirements,
+  Product,
+  CreateProductInput,
+  UpdateProductInput,
+  ListProductsParams,
+  ListProductsResponse,
 } from './types.js';
 import { ClearvoError } from './types.js';
 
@@ -30,7 +35,8 @@ export class ClearvoClient {
   private async request<T>(
     method: string,
     path: string,
-    body?: unknown
+    body?: unknown,
+    extraHeaders?: Record<string, string>
   ): Promise<T> {
     const response = await fetch(`${this.baseUrl}${path}`, {
       method,
@@ -38,6 +44,7 @@ export class ClearvoClient {
         'x-api-key': this.apiKey,
         'Content-Type': 'application/json',
         'Accept': 'application/json',
+        ...extraHeaders,
       },
       body: body !== undefined ? JSON.stringify(body) : undefined,
     });
@@ -58,12 +65,17 @@ export class ClearvoClient {
 
   // ── E-Invoicing ──────────────────────────────────────────────────────────────
 
-  submitInvoice(input: Record<string, unknown>): Promise<InvoiceSubmitResponse> {
-    return this.request('POST', '/send', input);
+  submitInvoice(input: Record<string, unknown>, idempotencyKey?: string): Promise<InvoiceSubmitResponse> {
+    const headers: Record<string, string> = {};
+    if (idempotencyKey) headers['x-idempotency-key'] = idempotencyKey;
+    return this.request('POST', '/send', input, headers);
   }
 
-  getInvoiceStatus(referenceId: string): Promise<InvoiceStatusResponse> {
-    return this.request('GET', `/status/${encodeURIComponent(referenceId)}`);
+  getInvoiceStatus(referenceId: string, country: string): Promise<InvoiceStatusResponse> {
+    return this.request(
+      'GET',
+      `/status?id=${encodeURIComponent(referenceId)}&country=${encodeURIComponent(country)}`
+    );
   }
 
   listInvoices(params: ListInvoicesParams = {}): Promise<ListInvoicesResponse> {
@@ -84,8 +96,8 @@ export class ClearvoClient {
 
   // ── Tax Number Validation ─────────────────────────────────────────────────────
 
-  validateTaxNumber(country: string, taxNumber: string): Promise<TaxNumberValidateResponse> {
-    return this.request('POST', '/tax-numbers/validate', { country, taxNumber });
+  validateTaxNumber(countryCode: string, taxNumber: string): Promise<TaxNumberValidateResponse> {
+    return this.request('POST', '/tax-numbers/validate', { countryCode, taxNumber });
   }
 
   // ── Entity Management ─────────────────────────────────────────────────────────
@@ -104,6 +116,33 @@ export class ClearvoClient {
 
   updateEntity(entityId: string, updates: UpdateEntityInput): Promise<Entity> {
     return this.request('PATCH', `/entities/${encodeURIComponent(entityId)}`, updates);
+  }
+
+  // ── Product Catalogue ─────────────────────────────────────────────────────────
+
+  listProducts(params: ListProductsParams = {}): Promise<ListProductsResponse> {
+    const qs = new URLSearchParams();
+    if (params.entityId) qs.set('entityId', params.entityId);
+    if (params.limit != null) qs.set('limit', String(params.limit));
+    if (params.page  != null) qs.set('page',  String(params.page));
+    const q = qs.toString();
+    return this.request('GET', `/products${q ? `?${q}` : ''}`);
+  }
+
+  createProduct(input: CreateProductInput): Promise<Product> {
+    return this.request('POST', '/products', input);
+  }
+
+  updateProduct(productId: string, updates: UpdateProductInput): Promise<Product> {
+    return this.request('PATCH', `/products/${encodeURIComponent(productId)}`, updates);
+  }
+
+  getProduct(productId: string): Promise<Product> {
+    return this.request('GET', `/products/${encodeURIComponent(productId)}`);
+  }
+
+  deleteProduct(productId: string): Promise<void> {
+    return this.request('DELETE', `/products/${encodeURIComponent(productId)}`);
   }
 
   // ── Requirements ──────────────────────────────────────────────────────────────
