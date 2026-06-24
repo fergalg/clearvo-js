@@ -42,8 +42,7 @@ export interface InvoiceSubmitResponse {
 
 export interface InvoiceStatusResponse {
   referenceId: string;
-  status: string;
-  clearanceStatus?: string;
+  clearanceStatus: string;
   clearanceStatusLabel?: string;
   ksefNumber?: string;
   updatedAt: string;
@@ -72,7 +71,7 @@ export interface TaxCalculateRequest {
   };
   shipFrom?: { country: string };
   customer: {
-    type: 'B2B' | 'B2C';
+    type: 'B2B' | 'B2C' | 'B2G';
     taxId?: string;
     billingAddress: {
       country: string;
@@ -80,6 +79,8 @@ export interface TaxCalculateRequest {
       postalCode?: string;
     };
     shippingAddress?: { country: string; region?: string; postalCode?: string };
+  };
+  evidence?: {
     ipAddress?: string;
     binCountry?: string;
   };
@@ -154,6 +155,43 @@ export interface CountryRequirements {
   authority?: string;
   authorityPortal?: string;
   notes?: string;
+}
+
+export interface Product {
+  id: string;
+  entityId: string;
+  name: string;
+  sku?: string;
+  description?: string;
+  taxCategory?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateProductInput {
+  name: string;
+  sku?: string;
+  description?: string;
+  taxCategory?: string;
+  entityId?: string;
+}
+
+export interface UpdateProductInput {
+  name?: string;
+  sku?: string;
+  description?: string;
+  taxCategory?: string;
+}
+
+export interface ListProductsParams {
+  entityId?: string;
+  limit?: number;
+  page?: number;
+}
+
+export interface ListProductsResponse {
+  products: Product[];
+  total: number;
 }
 
 export class ClearvoError extends Error {

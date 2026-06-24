@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { readFileSync } from 'fs';
+import { createHash } from 'crypto';
 import { homedir } from 'os';
 import { join } from 'path';
 import { Command } from 'commander';
@@ -22,13 +23,19 @@ function getApiKey(): string {
   process.exit(1);
 }
 
-async function api(method: string, path: string, body?: unknown): Promise<unknown> {
+async function api(
+  method: string,
+  path: string,
+  body?: unknown,
+  extraHeaders?: Record<string, string>
+): Promise<unknown> {
   const res = await fetch(`${BASE_URL}${path}`, {
     method,
     headers: {
       'x-api-key': getApiKey(),
       'Content-Type': 'application/json',
       'Accept': 'application/json',
+      ...extraHeaders,
     },
     body: body !== undefined ? JSON.stringify(body) : undefined,
   });
@@ -58,8 +65,11 @@ program
   .description('Submit an invoice from a JSON file')
   .option('--pretty', 'Pretty-print JSON output')
   .action(async (file: string, opts: { pretty?: boolean }) => {
-    const body = JSON.parse(readFileSync(file, 'utf8')) as unknown;
-    const result = await api('POST', '/send', body);
+    const raw = readFileSync(file, 'utf8');
+    const body = JSON.parse(raw) as Record<string, unknown>;
+    // Derive a stable idempotency key from the invoice file content
+    const idempotencyKey = createHash('sha256').update(raw).digest('hex').slice(0, 64);
+    const result = await api('POST', '/send', body, { 'x-idempotency-key': idempotencyKey });
     print(result, !!opts.pretty);
   });
 
@@ -67,9 +77,13 @@ program
 program
   .command('status <referenceId>')
   .description('Poll the clearance status of a submitted invoice')
+  .requiredOption('--country <code>', 'ISO 3166-1 alpha-2 country code of the invoice (e.g. IT, PL)')
   .option('--pretty', 'Pretty-print JSON output')
-  .action(async (referenceId: string, opts: { pretty?: boolean }) => {
-    const result = await api('GET', `/status/${encodeURIComponent(referenceId)}`);
+  .action(async (referenceId: string, opts: { country: string; pretty?: boolean }) => {
+    const result = await api(
+      'GET',
+      `/status?id=${encodeURIComponent(referenceId)}&country=${encodeURIComponent(opts.country)}`
+    );
     print(result, !!opts.pretty);
   });
 
@@ -94,7 +108,10 @@ program
   .requiredOption('--number <taxNumber>', 'The tax/VAT number to validate')
   .option('--pretty', 'Pretty-print JSON output')
   .action(async (opts: { country: string; number: string; pretty?: boolean }) => {
-    const result = await api('POST', '/tax-numbers/validate', { country: opts.country, taxNumber: opts.number });
+    const result = await api('POST', '/tax-numbers/validate', {
+      countryCode: opts.country,
+      taxNumber: opts.number,
+    });
     print(result, !!opts.pretty);
   });
 
@@ -109,7 +126,7 @@ program
     print(result, !!opts.pretty);
   });
 
-// ── clearvo entities list ────────────────────────────────────────────────────
+// ── clearvo entities ────────────────────────────────────────────────────────
 const entities = program.command('entities').description('Manage entities');
 
 entities
@@ -133,10 +150,9 @@ entities
     if (opts.vat) body.vatNumber = opts.vat;
     const result = await api('POST', '/entities', body);
     print(result, !!opts.pretty);
-    // Highlight the API key since it's shown only once
     const r = result as Record<string, unknown>;
     if (r.apiKey) {
-      console.error('\n⚠  Save this API key — it will not be shown again:');
+      console.error('\nSave this API key — it will not be shown again:');
       console.error(r.apiKey as string);
     }
   });
@@ -147,6 +163,82 @@ entities
   .option('--pretty', 'Pretty-print JSON output')
   .action(async (id: string, opts: { pretty?: boolean }) => {
     const result = await api('GET', `/entities/${encodeURIComponent(id)}`);
+    print(result, !!opts.pretty);
+  });
+
+// ── clearvo products ────────────────────────────────────────────────────────
+const products = program.command('products').description('Manage the product catalogue');
+
+products
+  .command('list')
+  .description('List products in the catalogue')
+  .option('--entity <entityId>', 'Filter by entity ID')
+  .option('--limit <n>', 'Results per page', '25')
+  .option('--page <n>', 'Page number', '1')
+  .option('--pretty', 'Pretty-print JSON output')
+  .action(async (opts: { entity?: string; limit: string; page: string; pretty?: boolean }) => {
+    const qs = new URLSearchParams({ limit: opts.limit, page: opts.page });
+    if (opts.entity) qs.set('entityId', opts.entity);
+    const result = await api('GET', `/products?${qs}`);
+    print(result, !!opts.pretty);
+  });
+
+products
+  .command('create')
+  .description('Create a product in the catalogue')
+  .requiredOption('--name <name>', 'Product or service name')
+  .option('--sku <sku>', 'Internal SKU or product code')
+  .option('--description <text>', 'Optional longer description')
+  .option('--tax-category <slug>', 'Tax category slug (e.g. saas_business, physical_goods_general)')
+  .option('--entity <entityId>', 'Entity to create the product under')
+  .option('--pretty', 'Pretty-print JSON output')
+  .action(async (opts: {
+    name: string;
+    sku?: string;
+    description?: string;
+    taxCategory?: string;
+    entity?: string;
+    pretty?: boolean;
+  }) => {
+    const body: Record<string, string> = { name: opts.name };
+    if (opts.sku) body.sku = opts.sku;
+    if (opts.description) body.description = opts.description;
+    if (opts.taxCategory) body.taxCategory = opts.taxCategory;
+    if (opts.entity) body.entityId = opts.entity;
+    const result = await api('POST', '/products', body);
+    print(result, !!opts.pretty);
+  });
+
+products
+  .command('update <id>')
+  .description('Update a product (name, SKU, description, or tax category)')
+  .option('--name <name>', 'Updated product name')
+  .option('--sku <sku>', 'Updated SKU')
+  .option('--description <text>', 'Updated description')
+  .option('--tax-category <slug>', 'Updated tax category slug')
+  .option('--pretty', 'Pretty-print JSON output')
+  .action(async (id: string, opts: {
+    name?: string;
+    sku?: string;
+    description?: string;
+    taxCategory?: string;
+    pretty?: boolean;
+  }) => {
+    const body: Record<string, string> = {};
+    if (opts.name) body.name = opts.name;
+    if (opts.sku) body.sku = opts.sku;
+    if (opts.description) body.description = opts.description;
+    if (opts.taxCategory) body.taxCategory = opts.taxCategory;
+    const result = await api('PATCH', `/products/${encodeURIComponent(id)}`, body);
+    print(result, !!opts.pretty);
+  });
+
+products
+  .command('get <id>')
+  .description('Get a product by ID')
+  .option('--pretty', 'Pretty-print JSON output')
+  .action(async (id: string, opts: { pretty?: boolean }) => {
+    const result = await api('GET', `/products/${encodeURIComponent(id)}`);
     print(result, !!opts.pretty);
   });
 
