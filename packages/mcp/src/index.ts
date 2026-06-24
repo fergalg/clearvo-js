@@ -8,14 +8,21 @@ import {
 import { createHash } from 'crypto';
 
 const API_KEY = process.env.CLEARVO_API_KEY;
+const ENTITY_ID = process.env.CLEARVO_ENTITY_ID;
 const BASE_URL = process.env.CLEARVO_BASE_URL ?? 'https://api.clearvo.io/v1';
 
 if (!API_KEY) {
   process.stderr.write(
-    'Error: CLEARVO_API_KEY environment variable is not set.\n' +
-    'Get a free API key at https://app.clearvo.io/settings\n'
+    'Warning: CLEARVO_API_KEY is not set — tools will return a configuration error until it is.\n' +
+    'Add CLEARVO_API_KEY to your MCP server env config. Get a key at https://app.clearvo.io/settings\n'
   );
-  process.exit(1);
+}
+if (!ENTITY_ID) {
+  process.stderr.write(
+    'Warning: CLEARVO_ENTITY_ID is not set — operations that require an entity context will fail.\n' +
+    'Add CLEARVO_ENTITY_ID to your MCP server env config, or use an entity-scoped API key.\n' +
+    'Run the list_entities tool to find your entity ID.\n'
+  );
 }
 
 async function callApi(
@@ -24,21 +31,37 @@ async function callApi(
   body?: unknown,
   extraHeaders?: Record<string, string>
 ): Promise<unknown> {
+  if (!API_KEY) {
+    throw new Error(
+      'CLEARVO_API_KEY is not configured. Add it to your MCP server env and restart. ' +
+      'Get a key at https://app.clearvo.io/settings'
+    );
+  }
+  const headers: Record<string, string> = {
+    'x-api-key': API_KEY,
+    'Content-Type': 'application/json',
+    'Accept': 'application/json',
+    ...extraHeaders,
+  };
+  if (ENTITY_ID) headers['x-entity-id'] = ENTITY_ID;
   const res = await fetch(`${BASE_URL}${path}`, {
     method,
-    headers: {
-      'x-api-key': API_KEY!,
-      'Content-Type': 'application/json',
-      'Accept': 'application/json',
-      ...extraHeaders,
-    },
+    headers,
     body: body !== undefined ? JSON.stringify(body) : undefined,
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
     const err = data as Record<string, unknown>;
+    const errorText = String(err.error ?? 'Unknown error');
+    if (res.status === 400 && errorText.toLowerCase().includes('entity context')) {
+      throw new Error(
+        'This operation requires an entity context. ' +
+        'Set CLEARVO_ENTITY_ID in your MCP server env config, or use an entity-scoped API key. ' +
+        'Run the list_entities tool to find your entity ID, then add it to the env config and restart.'
+      );
+    }
     const msg = [
-      `HTTP ${res.status}: ${err.error ?? 'Unknown error'}`,
+      `HTTP ${res.status}: ${errorText}`,
       err.hint ? `Hint: ${err.hint}` : null,
       err.field ? `Field: ${err.field}` : null,
     ].filter(Boolean).join('\n');
@@ -156,7 +179,7 @@ const TOOLS = [
       type: 'object' as const,
       properties: {
         currency: { type: 'string', description: 'ISO 4217 currency code' },
-        commit: { type: 'boolean', description: 'If true, records in audit trail and updates compliance thresholds. Default: false.' },
+        commit: { type: 'boolean', description: 'If true, records in the audit trail, updates compliance thresholds, and makes the transaction visible in the dashboard. Default: false (ephemeral — not stored). Set to true for real transactions.' },
         seller: {
           type: 'object',
           properties: {
@@ -190,6 +213,7 @@ const TOOLS = [
               id: { type: 'string', description: 'Your line item ID' },
               amount: { type: 'number', description: 'Line total in the transaction currency' },
               productName: { type: 'string', description: 'Product or service name — used for AI tax category classification if taxCategory not provided' },
+              productCode: { type: 'string', description: 'Optional SKU or product code. When provided, the classification result is cached per account so the same product is not re-classified on every transaction.' },
               taxCategory: { type: 'string', description: 'Optional explicit category slug (e.g. saas_business, digital_general, physical_goods_general, professional_services). Skips AI classification.' },
             },
             required: ['id', 'amount', 'productName'],
@@ -435,10 +459,10 @@ const TOOLS = [
           description: 'Registration type. VAT=standard per-country, IOSS=EU Import One-Stop Shop, UNION_OSS=EU OSS for registered businesses, NON_UNION_OSS=EU OSS for non-EU sellers, VOEC=Norway digital goods',
         },
         country: { type: 'string', description: 'ISO 3166-1 alpha-2 country code. Not required for IOSS (applies EU-wide).' },
-        taxNumber: { type: 'string', description: 'The registration or VAT number issued by the authority' },
+        taxNumber: { type: 'string', description: 'The registration or VAT number issued by the authority. Optional — can be added later once received. Omit to self-certify that the registration exists without yet recording the number.' },
         entityId: { type: 'string', description: 'Entity to register. Required for account-scoped keys; omit for entity-scoped keys.' },
       },
-      required: ['type', 'taxNumber'],
+      required: ['type'],
     },
   },
   {
