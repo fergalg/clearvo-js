@@ -191,8 +191,8 @@ const TOOLS = [
         customer: {
           type: 'object',
           properties: {
-            type: { type: 'string', enum: ['B2B', 'B2C', 'B2G'], description: 'B2B if selling to a registered business, B2C if selling to a consumer, B2G if selling to a government entity' },
-            taxId: { type: 'string', description: 'Customer VAT number — triggers reverse charge determination for B2B cross-border' },
+            b2bOverride: { type: 'boolean', description: 'Set true to force B2B treatment regardless of VAT number validation outcome. Use when you know the buyer is a business but do not have their VAT ID at checkout time. Omit for the normal flow — B2B is inferred automatically when a valid taxId is supplied.' },
+            taxId: { type: 'string', description: 'Customer VAT number — triggers B2B reverse charge or zero-rating for cross-border sales' },
             billingAddress: {
               type: 'object',
               properties: {
@@ -203,7 +203,7 @@ const TOOLS = [
               required: ['country'],
             },
           },
-          required: ['type', 'billingAddress'],
+          required: ['billingAddress'],
         },
         lineItems: {
           type: 'array',
