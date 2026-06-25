@@ -237,6 +237,8 @@ const TOOLS = [
       properties: {
         country: { type: 'string', description: 'ISO 3166-1 alpha-2 country code (e.g. "DE", "GB", "AU")' },
         taxNumber: { type: 'string', description: 'The tax/VAT number to validate. Include the country prefix for EU numbers (e.g. "DE123456789", "FR12345678901").' },
+        registryType: { type: 'string', enum: ['vat', 'national', 'auto'], description: 'Which registry to check. "vat" = VAT registry (EU VIES for EU countries, HMRC for GB, etc.). "national" = national business registry (CBE for BE, SIREN for FR, etc.). "auto" = let the system choose based on number format. Defaults to "vat". Use "national" for Belgian enterprise numbers not visible in VIES.' },
+        force: { type: 'boolean', description: 'Bypass the 30-day result cache and perform a fresh authority check. Use when you need to confirm the current registration status, e.g. after a suspected deregistration.' },
       },
       required: ['country', 'taxNumber'],
     },
@@ -531,8 +533,8 @@ async function handleTool(name: string, args: Record<string, unknown>): Promise<
       return callApi('POST', '/tax/calculate', args);
 
     case 'validate_tax_number': {
-      const { country, taxNumber } = args as { country: string; taxNumber: string };
-      return callApi('POST', '/tax-numbers/validate', { countryCode: country, taxNumber });
+      const { country, taxNumber, registryType, force } = args as { country: string; taxNumber: string; registryType?: string; force?: boolean };
+      return callApi('POST', '/tax-numbers/validate', { countryCode: country, taxNumber, ...(registryType && { registryType }), ...(force && { force }) });
     }
 
     case 'list_entities':
