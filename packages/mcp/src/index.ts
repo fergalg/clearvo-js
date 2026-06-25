@@ -17,6 +17,13 @@ if (!API_KEY) {
     'Add CLEARVO_API_KEY to your MCP server env config. Get a key at https://app.clearvo.io/settings\n'
   );
 }
+if (!ENTITY_ID) {
+  process.stderr.write(
+    'Warning: CLEARVO_ENTITY_ID is not set — operations that require an entity context will fail.\n' +
+    'Add CLEARVO_ENTITY_ID to your MCP server env config, or use an entity-scoped API key.\n' +
+    'Run the list_entities tool to find your entity ID.\n'
+  );
+}
 
 async function callApi(
   method: string,
@@ -45,8 +52,16 @@ async function callApi(
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
     const err = data as Record<string, unknown>;
+    const errorText = String(err.error ?? 'Unknown error');
+    if (res.status === 400 && errorText.toLowerCase().includes('entity context')) {
+      throw new Error(
+        'This operation requires an entity context. ' +
+        'Set CLEARVO_ENTITY_ID in your MCP server env config, or use an entity-scoped API key. ' +
+        'Run the list_entities tool to find your entity ID, then add it to the env config and restart.'
+      );
+    }
     const msg = [
-      `HTTP ${res.status}: ${err.error ?? 'Unknown error'}`,
+      `HTTP ${res.status}: ${errorText}`,
       err.hint ? `Hint: ${err.hint}` : null,
       err.field ? `Field: ${err.field}` : null,
     ].filter(Boolean).join('\n');
