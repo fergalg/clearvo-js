@@ -26,6 +26,8 @@ import type {
   TaxRegistration,
   ListRegistrationsResponse,
   AddRegistrationInput,
+  SetCollectionInput,
+  SetCollectionResponse,
   TaxCalculationSummary,
   ListTaxCalculationsParams,
   ListTaxCalculationsResponse,
@@ -196,6 +198,10 @@ export class ClearvoClient {
 
   addRegistration(input: AddRegistrationInput): Promise<{ ok: boolean; registration?: object }> {
     return this.request('POST', '/tax/registrations', input);
+  }
+
+  setCollectionDate(registrationId: string, input: SetCollectionInput): Promise<SetCollectionResponse> {
+    return this.request('PATCH', `/tax/registrations/${encodeURIComponent(registrationId)}`, input);
   }
 
   // ── Tax Calculation History ───────────────────────────────────────────────────

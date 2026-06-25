@@ -451,6 +451,30 @@ const TOOLS = [
     },
   },
   {
+    name: 'set_registration_collection',
+    description:
+      'Set the date from which a tax registration starts collecting tax. ' +
+      'Use this after adding a registration to activate collection — without a collection date, ' +
+      'Clearvo will not apply tax for that country (even if Tax Calculations is enabled). ' +
+      'Pass collectFromDate as null to start collecting immediately, or as an ISO date string (YYYY-MM-DD) ' +
+      'to defer collection until a future date. ' +
+      'Returns the new collectionStatus: COLLECTING (if the date is today or past) or DEFERRED (if future).',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        registrationId: {
+          type: 'string',
+          description: 'The tax number ID or obligation ID of the registration (from list_registrations — use taxNumberId or obligationId field)',
+        },
+        collectFromDate: {
+          type: ['string', 'null'],
+          description: 'ISO date string (YYYY-MM-DD) to defer collection to a future date, or null to start collecting immediately (today).',
+        },
+      },
+      required: ['registrationId', 'collectFromDate'],
+    },
+  },
+  {
     name: 'list_tax_calculations',
     description:
       'List committed tax calculations (those created with commit=true). ' +
@@ -562,6 +586,11 @@ async function handleTool(name: string, args: Record<string, unknown>): Promise<
 
     case 'add_registration':
       return callApi('POST', '/tax/registrations', args);
+
+    case 'set_registration_collection': {
+      const { registrationId, collectFromDate } = args as { registrationId: string; collectFromDate: string | null };
+      return callApi('PATCH', `/tax/registrations/${encodeURIComponent(registrationId)}`, { collectFromDate });
+    }
 
     case 'list_tax_calculations': {
       const qs = new URLSearchParams();

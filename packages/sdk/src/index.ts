@@ -14,4 +14,9 @@ export type {
   TaxCalculateResponse,
   TaxNumberValidateResponse,
   CountryRequirements,
+  TaxRegistration,
+  ListRegistrationsResponse,
+  AddRegistrationInput,
+  SetCollectionInput,
+  SetCollectionResponse,
 } from './types.js';

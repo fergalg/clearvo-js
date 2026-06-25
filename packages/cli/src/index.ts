@@ -309,6 +309,22 @@ registrations
   });
 
 registrations
+  .command('set-collection <id>')
+  .description('Set the collection start date for a registration')
+  .option('--immediately', 'Start collecting tax immediately (today)')
+  .option('--from <date>', 'Defer collection to a future date (YYYY-MM-DD)')
+  .option('--pretty', 'Pretty-print JSON output')
+  .action(async (id: string, opts: { immediately?: boolean; from?: string; pretty?: boolean }) => {
+    if (!opts.immediately && !opts.from) {
+      console.error('Error: provide either --immediately or --from <date>');
+      process.exit(1);
+    }
+    const collectFromDate = opts.immediately ? null : (opts.from ?? null);
+    const result = await api('PATCH', `/tax/registrations/${encodeURIComponent(id)}`, { collectFromDate });
+    print(result, !!opts.pretty);
+  });
+
+registrations
   .command('add')
   .description('Record a new tax registration (VAT, IOSS, OSS, VOEC)')
   .requiredOption('--type <type>', 'Registration type: VAT, IOSS, UNION_OSS, NON_UNION_OSS, VOEC')

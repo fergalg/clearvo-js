@@ -236,10 +236,15 @@ export interface TaxRegistration {
   scheme: string;
   taxNumber: string | null;
   taxType: string | null;
+  taxNumberId: string | null;
+  obligationId: string | null;
   registrationStatus: string;
   obligationStatus: string | null;
   threshold: { amount: number; currency: string } | null;
   currentPeriodAmount: number | null;
+  collectFromDate: string | null;
+  collectionStatus: 'COLLECTING' | 'DEFERRED' | 'SETUP_NEEDED' | null;
+  canCollectTax: boolean;
 }
 
 export interface ListRegistrationsResponse {
@@ -248,7 +253,19 @@ export interface ListRegistrationsResponse {
   entityName: string;
   homeCountry: string;
   iossNumber: string | null;
+  taxCalcEnabled: boolean;
+  taxCalcSetupRequired: boolean;
   registrations: TaxRegistration[];
+}
+
+export interface SetCollectionInput {
+  collectFromDate: string | null;
+}
+
+export interface SetCollectionResponse {
+  ok: boolean;
+  collectionStatus: 'COLLECTING' | 'DEFERRED';
+  collectFromDate: string;
 }
 
 export interface AddRegistrationInput {
