@@ -312,6 +312,24 @@ const TOOLS = [
     },
   },
   {
+    name: 'get_invoice',
+    description:
+      'Fetch complete detail for a single invoice by its Clearvo ID or authority reference number ' +
+      '(SDI IdentificativoSdI, KSeF referenceNumber, NAV ID, etc.). ' +
+      'Returns everything in list_invoices plus: full event log, country authority references, ' +
+      'upstream error code and message, a suggested action when the invoice was rejected, ' +
+      'and the submitted XML. ' +
+      'Use this to investigate a specific rejection, retrieve the XML for auditing, ' +
+      'or check whether a suggested action has been applied.',
+    inputSchema: {
+      type: 'object' as const,
+      required: ['id'],
+      properties: {
+        id: { type: 'string', description: 'Clearvo invoice ID or authority reference ID (SDI ID, KSeF number, etc.)' },
+      },
+    },
+  },
+  {
     name: 'list_products',
     description:
       'List the product catalogue for an entity. ' +
@@ -556,6 +574,11 @@ async function handleTool(name: string, args: Record<string, unknown>): Promise<
       if (args.page)    qs.set('page',    String(args.page));
       const q = qs.toString();
       return callApi('GET', `/invoices${q ? `?${q}` : ''}`);
+    }
+
+    case 'get_invoice': {
+      const id = args.id as string;
+      return callApi('GET', `/invoices/${encodeURIComponent(id)}`);
     }
 
     case 'list_products': {
