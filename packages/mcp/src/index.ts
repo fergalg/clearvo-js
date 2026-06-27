@@ -296,7 +296,8 @@ const TOOLS = [
       'Filter by country, clearance status, or date. ' +
       'Returns submission timestamps, clearance status labels, and authority reference numbers. ' +
       'Use this to audit submitted invoices, find invoices that are still PENDING, ' +
-      'or identify REJECTED invoices that need to be resubmitted.',
+      'or identify REJECTED invoices that need to be resubmitted. ' +
+      'Paginate using the nextCursor / prevCursor values returned in each response: pass nextCursor as after_id to advance forward.',
     inputSchema: {
       type: 'object' as const,
       properties: {
@@ -306,8 +307,9 @@ const TOOLS = [
           enum: ['PENDING', 'ACCEPTED', 'REJECTED', 'DUPLICATE', 'UNROUTABLE', 'DELIVERED', 'UNDELIVERED'],
           description: 'Filter by clearance status',
         },
-        limit: { type: 'number', description: 'Results per page (default 25, max 100)' },
-        page: { type: 'number', description: 'Page number, 1-based (default 1)' },
+        limit:     { type: 'number', description: 'Results per page (default 25, max 100)' },
+        after_id:  { type: 'string', description: 'Return invoices submitted before this invoice ID (use nextCursor from a previous response)' },
+        before_id: { type: 'string', description: 'Return invoices submitted after this invoice ID (use prevCursor from a previous response)' },
       },
     },
   },
@@ -568,10 +570,11 @@ async function handleTool(name: string, args: Record<string, unknown>): Promise<
 
     case 'list_invoices': {
       const qs = new URLSearchParams();
-      if (args.country) qs.set('country', args.country as string);
-      if (args.status)  qs.set('status',  args.status  as string);
-      if (args.limit)   qs.set('limit',   String(args.limit));
-      if (args.page)    qs.set('page',    String(args.page));
+      if (args.country)   qs.set('country',   args.country   as string);
+      if (args.status)    qs.set('status',    args.status    as string);
+      if (args.limit)     qs.set('limit',     String(args.limit));
+      if (args.after_id)  qs.set('after_id',  args.after_id  as string);
+      if (args.before_id) qs.set('before_id', args.before_id as string);
       const q = qs.toString();
       return callApi('GET', `/invoices${q ? `?${q}` : ''}`);
     }

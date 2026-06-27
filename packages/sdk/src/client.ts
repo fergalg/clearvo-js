@@ -94,10 +94,11 @@ export class ClearvoClient {
 
   listInvoices(params: ListInvoicesParams = {}): Promise<ListInvoicesResponse> {
     const qs = new URLSearchParams();
-    if (params.limit  != null) qs.set('limit',   String(params.limit));
-    if (params.page   != null) qs.set('page',    String(params.page));
-    if (params.country)        qs.set('country', params.country);
-    if (params.status)         qs.set('status',  params.status);
+    if (params.limit    != null) qs.set('limit',     String(params.limit));
+    if (params.afterId)          qs.set('after_id',  params.afterId);
+    if (params.beforeId)         qs.set('before_id', params.beforeId);
+    if (params.country)          qs.set('country',   params.country);
+    if (params.status)           qs.set('status',    params.status);
     const q = qs.toString();
     return this.request('GET', `/invoices${q ? `?${q}` : ''}`);
   }

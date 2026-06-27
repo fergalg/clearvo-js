@@ -50,7 +50,8 @@ export interface InvoiceStatusResponse {
 
 export interface ListInvoicesParams {
   limit?: number;
-  page?: number;
+  afterId?: string;
+  beforeId?: string;
   country?: string;
   status?: string;
 }
@@ -58,6 +59,8 @@ export interface ListInvoicesParams {
 export interface ListInvoicesResponse {
   invoices: unknown[];
   total: number;
+  nextCursor: string | null;
+  prevCursor: string | null;
 }
 
 export interface TaxCalculateRequest {
