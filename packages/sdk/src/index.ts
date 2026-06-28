@@ -19,4 +19,11 @@ export type {
   AddRegistrationInput,
   SetCollectionInput,
   SetCollectionResponse,
+  ExemptionCertificate,
+  ExemptionCertificateType,
+  ExemptionFormType,
+  ListExemptionsParams,
+  ListExemptionsResponse,
+  CreateExemptionInput,
+  CreateExemptionResponse,
 } from './types.js';

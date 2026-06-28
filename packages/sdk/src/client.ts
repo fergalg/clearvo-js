@@ -31,6 +31,10 @@ import type {
   TaxCalculationSummary,
   ListTaxCalculationsParams,
   ListTaxCalculationsResponse,
+  ListExemptionsParams,
+  ListExemptionsResponse,
+  CreateExemptionInput,
+  CreateExemptionResponse,
 } from './types.js';
 import { ClearvoError } from './types.js';
 
@@ -215,5 +219,22 @@ export class ClearvoClient {
     if (params.page  != null) qs.set('page',  String(params.page));
     const q = qs.toString();
     return this.request('GET', `/tax/calculate${q ? `?${q}` : ''}`);
+  }
+
+  // ── Exemption Certificates ────────────────────────────────────────────────────
+
+  listExemptions(params: ListExemptionsParams = {}): Promise<ListExemptionsResponse> {
+    const qs = new URLSearchParams();
+    if (params.status)        qs.set('status',  params.status);
+    if (params.country)       qs.set('country', params.country);
+    if (params.region)        qs.set('region',  params.region);
+    if (params.limit != null) qs.set('limit',   String(params.limit));
+    if (params.page  != null) qs.set('page',    String(params.page));
+    const q = qs.toString();
+    return this.request('GET', `/tax/exemptions${q ? `?${q}` : ''}`);
+  }
+
+  createExemption(input: CreateExemptionInput): Promise<CreateExemptionResponse> {
+    return this.request('POST', '/tax/exemptions', input);
   }
 }
