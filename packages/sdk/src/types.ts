@@ -308,6 +308,64 @@ export interface ListTaxCalculationsResponse {
   pagination: { page: number; limit: number; total: number };
 }
 
+export type ExemptionCertificateType =
+  | 'RESALE' | 'MANUFACTURING' | 'AGRICULTURAL' | 'ENERGY'
+  | 'EXEMPT_ORG' | 'GOVERNMENT' | 'DIRECT_PAY' | 'BLANKET_OTHER';
+
+export type ExemptionFormType = 'SST' | 'MTC' | 'CUSTOM';
+
+export interface ExemptionCertificate {
+  id:              string;
+  ids:             string[];
+  certificateRef:  string;
+  customerRef:     string | null;
+  customerName:    string | null;
+  buyerTaxId:      string | null;
+  certificateType: ExemptionCertificateType;
+  formType:        ExemptionFormType | null;
+  country:         string;
+  regions:         string[];
+  regionNames:     string[];
+  taxCategorySlug: string | null;
+  effectiveFrom:   string;
+  effectiveTo:     string | null;
+  status:          'ACTIVE' | 'EXPIRED' | 'REVOKED' | 'PENDING';
+  documentUrl:     string | null;
+  createdAt:       string;
+  updatedAt:       string;
+}
+
+export interface ListExemptionsParams {
+  status?:  'ACTIVE' | 'EXPIRED' | 'REVOKED';
+  country?: string;
+  region?:  string;
+  limit?:   number;
+  page?:    number;
+}
+
+export interface ListExemptionsResponse {
+  certificates: ExemptionCertificate[];
+  total:        number;
+  page:         number;
+  limit:        number;
+}
+
+export interface CreateExemptionInput {
+  certificateRef:  string;
+  customerRef:     string;
+  customerName?:   string;
+  buyerTaxId?:     string;
+  certificateType: ExemptionCertificateType;
+  formType?:       ExemptionFormType;
+  country?:        string;
+  region?:         string;
+  taxCategorySlug?: string;
+  effectiveFrom:   string;
+  effectiveTo?:    string;
+}
+
+export interface CreateExemptionResponse extends ExemptionCertificate {}
+
 export class ClearvoError extends Error {
   constructor(
     public readonly status: number,

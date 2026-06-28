@@ -528,6 +528,59 @@ const TOOLS = [
       },
     },
   },
+  {
+    name: 'list_exemptions',
+    description:
+      'List US sales tax exemption certificates stored in Clearvo. ' +
+      'Results are grouped by certificateRef — a multi-state certificate appears as one row ' +
+      'with a regions[] array listing all covered states and a regionNames[] array with full state names. ' +
+      'Returns ids[], certificateRef, customerName, certificateType, country, regions, regionNames, ' +
+      'effectiveFrom, effectiveTo, status, and customerRef. ' +
+      'Filter by status (ACTIVE, EXPIRED, REVOKED), country, or region.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        status:  { type: 'string', enum: ['ACTIVE', 'EXPIRED', 'REVOKED'], description: 'Filter by certificate status' },
+        country: { type: 'string', description: 'Filter by country code (e.g. "US")' },
+        region:  { type: 'string', description: 'Filter by state/province code (e.g. "CA", "TX")' },
+        limit:   { type: 'number', description: 'Results per page (default 25, max 100)' },
+        page:    { type: 'number', description: 'Page number, 1-based (default 1)' },
+      },
+    },
+  },
+  {
+    name: 'create_exemption',
+    description:
+      'Create a US sales tax exemption certificate record. ' +
+      'Use certificateRef as your own stable identifier for the certificate document (e.g. a DMS reference or internal number). ' +
+      'Use customerRef to link the certificate to a customer in your ERP or billing system. ' +
+      'For SST multi-state certificates (covering all 24 SST member states), set formType to "SST" and omit region. ' +
+      'Returns ids[], regions[], regionNames[], certificateRef, and customerRef.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        certificateRef:  { type: 'string', description: 'Your identifier for the certificate document (DMS reference, file name, internal ID)' },
+        customerRef:     { type: 'string', description: 'Your ERP or billing system reference for this customer (e.g. Stripe customer ID, SAP customer number)' },
+        customerName:    { type: 'string', description: 'Legal name of the buyer holding the exemption' },
+        buyerTaxId:      { type: 'string', description: 'The buyer\'s tax registration or EIN number (for audit identification)' },
+        certificateType: {
+          type: 'string',
+          enum: ['RESALE', 'MANUFACTURING', 'AGRICULTURAL', 'ENERGY', 'EXEMPT_ORG', 'GOVERNMENT', 'DIRECT_PAY', 'BLANKET_OTHER'],
+          description: 'The basis for the exemption. RESALE is most common for wholesale/reseller buyers.',
+        },
+        formType: {
+          type: 'string',
+          enum: ['SST', 'MTC', 'CUSTOM'],
+          description: 'Certificate form type. SST = Streamlined Sales Tax (covers all 24 SST member states). MTC = Multistate Tax Commission. CUSTOM = state-specific form. Omit for a single-state certificate without a special form type.',
+        },
+        country:        { type: 'string', description: 'ISO 3166-1 alpha-2 country code. Currently "US" for all exemptions.', default: 'US' },
+        region:         { type: 'string', description: 'Two-letter US state code (e.g. "TX", "CA"). Omit for SST multi-state certificates.' },
+        effectiveFrom:  { type: 'string', description: 'ISO 8601 date (YYYY-MM-DD) from which the certificate is valid' },
+        effectiveTo:    { type: 'string', description: 'ISO 8601 date (YYYY-MM-DD) on which the certificate expires. Omit for open-ended certificates.' },
+      },
+      required: ['certificateRef', 'customerRef', 'certificateType', 'effectiveFrom'],
+    },
+  },
 ] as const;
 
 async function handleTool(name: string, args: Record<string, unknown>): Promise<unknown> {
@@ -644,6 +697,20 @@ async function handleTool(name: string, args: Record<string, unknown>): Promise<
       const q = qs.toString();
       return callApi('GET', `/tax/calculate${q ? `?${q}` : ''}`);
     }
+
+    case 'list_exemptions': {
+      const qs = new URLSearchParams();
+      if (args.status)  qs.set('status',  args.status  as string);
+      if (args.country) qs.set('country', args.country as string);
+      if (args.region)  qs.set('region',  args.region  as string);
+      if (args.limit)   qs.set('limit',   String(args.limit));
+      if (args.page)    qs.set('page',    String(args.page));
+      const q = qs.toString();
+      return callApi('GET', `/tax/exemptions${q ? `?${q}` : ''}`);
+    }
+
+    case 'create_exemption':
+      return callApi('POST', '/tax/exemptions', args);
 
     default:
       throw new Error(`Unknown tool: ${name}`);
