@@ -528,6 +528,53 @@ const TOOLS = [
       },
     },
   },
+  {
+    name: 'get_setup_status',
+    description:
+      'Check what is left to finish setting up this Clearvo account — mirrors the dashboard\'s ' +
+      '"Getting Started" checklist. Returns one entry per applicable step: whether it is done, which ' +
+      'solution gates it (if any), a description of what the step means, and how to complete it ' +
+      '(which tool to call, or which dashboard page to visit for steps with no public API yet). ' +
+      'Steps not relevant to this account (e.g. team invites on a Starter plan) are omitted entirely. ' +
+      'Call this right after connecting, and again after completing a step, to verify it registered.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {},
+    },
+  },
+  {
+    name: 'get_tax_settings',
+    description:
+      'Read the account-level tax calculation settings: VAT validation mode, how to treat ' +
+      'unverifiable VAT numbers, default tax-inclusive/exclusive pricing, default product category, ' +
+      'and US address precision. The response includes a "descriptions" object explaining what each ' +
+      'setting controls and the tradeoffs — use it to explain the options to the user in plain language ' +
+      'before calling update_tax_settings. Also returns confirmedAt — null means the user has not yet ' +
+      'explicitly reviewed these settings (a Getting Started step).',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {},
+    },
+  },
+  {
+    name: 'update_tax_settings',
+    description:
+      'Update account-level tax calculation settings. Call get_tax_settings first to see current values ' +
+      'and their explanations before changing anything. Pass confirmed=true once the user has reviewed ' +
+      'the settings (even if they kept all defaults) — this marks the "Review your tax calculation ' +
+      'settings" Getting Started step complete.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        vatValidationMode: { type: 'string', enum: ['full', 'format', 'none'], description: "'full' validates live against the issuing authority, 'format' only checks structure, 'none' skips validation entirely." },
+        vatUnverifiableTreatment: { type: 'string', enum: ['consumer', 'business'], description: "How to treat a B2B buyer whose VAT number can't be verified live. 'consumer' (safer default) charges tax as if B2C; 'business' keeps reverse-charge treatment." },
+        defaultPriceIncludesTax: { type: 'boolean', description: 'Whether prices sent to calculate_tax already include tax (true) or are tax-exclusive (false).' },
+        defaultTaxCategorySlug: { type: ['string', 'null'], description: 'Tax category applied when no product name/category is supplied on a line item. Pass null to clear it.' },
+        usAddressPrecision: { type: 'string', enum: ['rooftop', 'zip'], description: "'rooftop' resolves the full street address for the most accurate US rate (recommended); 'zip' uses ZIP code only." },
+        confirmed: { type: 'boolean', description: 'Set true once the user has reviewed these settings — marks the onboarding step complete, independent of whether any value changed.' },
+      },
+    },
+  },
 ] as const;
 
 async function handleTool(name: string, args: Record<string, unknown>): Promise<unknown> {
@@ -644,6 +691,15 @@ async function handleTool(name: string, args: Record<string, unknown>): Promise<
       const q = qs.toString();
       return callApi('GET', `/tax/calculate${q ? `?${q}` : ''}`);
     }
+
+    case 'get_setup_status':
+      return callApi('GET', '/setup/status');
+
+    case 'get_tax_settings':
+      return callApi('GET', '/tax/settings');
+
+    case 'update_tax_settings':
+      return callApi('PATCH', '/tax/settings', args);
 
     default:
       throw new Error(`Unknown tool: ${name}`);
