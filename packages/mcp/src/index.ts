@@ -698,8 +698,10 @@ async function handleTool(name: string, args: Record<string, unknown>): Promise<
     case 'get_tax_settings':
       return callApi('GET', '/tax/settings');
 
-    case 'update_tax_settings':
-      return callApi('PATCH', '/tax/settings', args);
+    case 'update_tax_settings': {
+      const { vatValidationMode, vatUnverifiableTreatment, defaultPriceIncludesTax, defaultTaxCategorySlug, usAddressPrecision, confirmed } = args;
+      return callApi('PATCH', '/tax/settings', { vatValidationMode, vatUnverifiableTreatment, defaultPriceIncludesTax, defaultTaxCategorySlug, usAddressPrecision, confirmed });
+    }
 
     default:
       throw new Error(`Unknown tool: ${name}`);
