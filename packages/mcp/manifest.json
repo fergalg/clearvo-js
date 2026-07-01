@@ -2,7 +2,7 @@
   "manifest_version": "0.3",
   "name": "clearvo",
   "display_name": "Clearvo",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Submit e-invoices, calculate global tax (VAT/GST/sales tax), and validate tax numbers via the Clearvo API",
   "long_description": "Connects Claude to the Clearvo tax compliance API. Submit B2B e-invoices to national tax authorities (SDI, KSeF, ANAF, SII, NAV, myDATA, Peppol, and more), calculate VAT/GST/sales tax across 100+ countries, and validate business tax numbers against official registries (VIES, HMRC, ABN Lookup, and others). Requires a free Clearvo account — create one at https://app.clearvo.io/register.",
   "author": {
@@ -25,7 +25,8 @@
       "args": ["${__dirname}/server/index.js"],
       "env": {
         "CLEARVO_API_KEY": "${user_config.api_key}",
-        "CLEARVO_ENTITY_ID": "${user_config.entity_id}"
+        "CLEARVO_ENTITY_ID": "${user_config.entity_id}",
+        "CLEARVO_BASE_URL": "${user_config.base_url}"
       }
     }
   },
@@ -42,6 +43,14 @@
       "type": "string",
       "title": "Entity ID (optional)",
       "description": "Only needed with an account-scoped API key operating across multiple entities. Leave blank for entity-scoped keys, or run list_entities to find it.",
+      "sensitive": false,
+      "required": false
+    },
+    "base_url": {
+      "type": "string",
+      "title": "API Base URL (optional)",
+      "description": "Only change this if your account is on a white-label tenant — e.g. https://api.taxually.com/v1 for a Taxually-branded account. Leave as the default for app.clearvo.io accounts.",
+      "default": "https://api.clearvo.io/v1",
       "sensitive": false,
       "required": false
     }

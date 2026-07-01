@@ -22,6 +22,13 @@
       "title": "Entity ID (optional)",
       "description": "Only needed with an account-scoped API key operating across multiple entities. Leave blank for entity-scoped keys, or run list_entities to find it.",
       "required": false
+    },
+    "base_url": {
+      "type": "string",
+      "title": "API Base URL (optional)",
+      "description": "Only change this if your account is on a white-label tenant — e.g. https://api.taxually.com/v1 for a Taxually-branded account. Leave as the default for app.clearvo.io accounts.",
+      "default": "https://api.clearvo.io/v1",
+      "required": false
     }
   }
 }
