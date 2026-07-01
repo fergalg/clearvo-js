@@ -5,7 +5,8 @@
       "args": ["-y", "@clearvo/mcp"],
       "env": {
         "CLEARVO_API_KEY": "${user_config.api_key}",
-        "CLEARVO_ENTITY_ID": "${user_config.entity_id}"
+        "CLEARVO_ENTITY_ID": "${user_config.entity_id}",
+        "CLEARVO_BASE_URL": "${user_config.base_url}"
       }
     }
   }
