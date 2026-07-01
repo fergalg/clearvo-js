@@ -1,0 +1,27 @@
+{
+  "name": "clearvo",
+  "displayName": "Clearvo",
+  "description": "Submit e-invoices, calculate global tax (VAT/GST/sales tax), and validate tax numbers via the Clearvo API",
+  "author": {
+    "name": "Clearvo",
+    "url": "https://clearvo.io"
+  },
+  "homepage": "https://clearvo.io/docs/claude-code",
+  "repository": "https://github.com/fergalg/clearvo-js",
+  "keywords": ["tax", "vat", "gst", "sales-tax", "einvoicing", "compliance", "clearvo"],
+  "userConfig": {
+    "api_key": {
+      "type": "string",
+      "title": "Clearvo API Key",
+      "description": "From app.clearvo.io/settings — starts with csk_live_ or csk_test_",
+      "sensitive": true,
+      "required": true
+    },
+    "entity_id": {
+      "type": "string",
+      "title": "Entity ID (optional)",
+      "description": "Only needed with an account-scoped API key operating across multiple entities. Leave blank for entity-scoped keys, or run list_entities to find it.",
+      "required": false
+    }
+  }
+}

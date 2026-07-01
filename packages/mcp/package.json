@@ -7,9 +7,14 @@
   "bin": {
     "clearvo-mcp": "dist/index.js"
   },
-  "files": ["dist", "README.md"],
+  "files": [
+    "dist",
+    "README.md"
+  ],
   "scripts": {
     "build": "tsc && chmod +x dist/index.js",
+    "build:mcpb": "node scripts/build-mcpb.js",
+    "test:mcpb": "node scripts/smoke-test-mcpb.js",
     "typecheck": "tsc --noEmit",
     "dev": "tsc --watch"
   },
@@ -17,11 +22,26 @@
     "@modelcontextprotocol/sdk": "^1.0.0"
   },
   "devDependencies": {
-    "typescript": "^5.0.0",
-    "@types/node": "^20.0.0"
+    "@anthropic-ai/mcpb": "^2.1.2",
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0"
   },
-  "publishConfig": { "access": "public" },
-  "repository": { "type": "git", "url": "https://github.com/fergalg/clearvo-js.git", "directory": "packages/mcp" },
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/fergalg/clearvo-js.git",
+    "directory": "packages/mcp"
+  },
   "homepage": "https://clearvo.io/docs/claude-code",
-  "keywords": ["clearvo", "mcp", "tax", "einvoicing", "claude", "cursor", "ai"]
+  "keywords": [
+    "clearvo",
+    "mcp",
+    "tax",
+    "einvoicing",
+    "claude",
+    "cursor",
+    "ai"
+  ]
 }
