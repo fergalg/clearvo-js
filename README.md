@@ -14,8 +14,11 @@ Three ways to connect, from least to most manual setup:
 
 ### Claude Desktop Extension (one click, no config editing)
 
+Requires a clone of this repo (the build script and manifest aren't published to npm — installing `@clearvo/mcp` alone won't include them):
+
 ```bash
-cd packages/mcp && npm run build:mcpb
+git clone https://github.com/fergalg/clearvo-js && cd clearvo-js
+npm install && cd packages/mcp && npm run build:mcpb
 ```
 
 This produces `packages/mcp/clearvo-<version>.mcpb`. Double-click it (or drag it onto Claude Desktop) — Desktop shows an install dialog with a form for your API key instead of asking you to hand-edit JSON. Desktop-only; not read by Claude Code, Cursor, or Windsurf.

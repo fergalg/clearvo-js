@@ -7,11 +7,13 @@
 
 const fs = require('fs');
 const path = require('path');
+const readline = require('readline');
 const { spawn } = require('child_process');
 
 const ROOT = path.join(__dirname, '..');
-const SERVER = path.join(ROOT, 'mcpb-build', 'server', 'index.js');
-const MANIFEST = path.join(ROOT, 'manifest.json');
+const STAGE = path.join(ROOT, 'mcpb-build');
+const SERVER = path.join(STAGE, 'server', 'index.js');
+const MANIFEST = path.join(STAGE, 'manifest.json'); // staged copy — build-mcpb.js generates its "tools" array; the checked-in source manifest.json does not
 
 if (!fs.existsSync(SERVER)) {
   console.error(`Missing ${path.relative(ROOT, SERVER)} — run "npm run build:mcpb" first.`);
@@ -24,29 +26,34 @@ const child = spawn('node', [SERVER], {
   cwd: path.dirname(SERVER),
   env: { ...process.env, CLEARVO_API_KEY: 'csk_test_smoketest' },
 });
-
-let stdout = '';
-child.stdout.on('data', d => { stdout += d; });
 child.stderr.on('data', () => {}); // expected config warnings, not failures
 
-function send(msg) {
-  child.stdin.write(JSON.stringify(msg) + '\n');
+const pending = new Map();
+function call(id, method, params) {
+  return new Promise(resolve => {
+    pending.set(id, resolve);
+    child.stdin.write(JSON.stringify({ jsonrpc: '2.0', id, method, params }) + '\n');
+  });
 }
 
-const timeout = setTimeout(() => fail('Timed out waiting for tools/list response'), 5000);
-
-send({ jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2024-11-05', capabilities: {}, clientInfo: { name: 'smoke-test', version: '0' } } });
-setTimeout(() => send({ jsonrpc: '2.0', id: 2, method: 'tools/list', params: {} }), 300);
-
-setTimeout(() => {
-  clearTimeout(timeout);
-  let response;
+readline.createInterface({ input: child.stdout }).on('line', line => {
+  let msg;
   try {
-    const lines = stdout.trim().split('\n').filter(Boolean);
-    response = JSON.parse(lines[lines.length - 1]);
+    msg = JSON.parse(line);
   } catch {
-    return fail(`Could not parse server response:\n${stdout}`);
+    return; // ignore non-JSON-RPC stdout noise
   }
+  pending.get(msg.id)?.(msg);
+  pending.delete(msg.id);
+});
+
+const timeout = setTimeout(() => fail('Timed out waiting for a tools/list response'), 5000);
+
+(async () => {
+  await call(1, 'initialize', { protocolVersion: '2024-11-05', capabilities: {}, clientInfo: { name: 'smoke-test', version: '0' } });
+  const response = await call(2, 'tools/list', {});
+  clearTimeout(timeout);
+
   const serverTools = new Set((response.result?.tools ?? []).map(t => t.name));
   const missingFromManifest = [...serverTools].filter(t => !manifestTools.has(t));
   const missingFromServer = [...manifestTools].filter(t => !serverTools.has(t));
@@ -60,7 +67,7 @@ setTimeout(() => {
   console.log(`OK — ${serverTools.size} tools match between server and manifest.json`);
   child.kill();
   process.exit(0);
-}, 1000);
+})();
 
 function fail(message) {
   console.error(message);

@@ -29,31 +29,7 @@
       }
     }
   },
-  "tools": [
-    { "name": "submit_invoice", "description": "Submit a B2B invoice to a national tax authority for clearance or registration" },
-    { "name": "poll_status", "description": "Check the clearance status of a previously submitted invoice" },
-    { "name": "calculate_tax", "description": "Calculate VAT/GST/sales tax for a transaction across 100+ countries" },
-    { "name": "validate_tax_number", "description": "Validate a business tax number against the official authority for that country" },
-    { "name": "validate_tax_numbers_batch", "description": "Validate up to 20 tax numbers in a single request" },
-    { "name": "list_entities", "description": "List the business entities registered under this Clearvo account" },
-    { "name": "create_entity", "description": "Create a new business entity and receive an entity-scoped API key" },
-    { "name": "get_requirements", "description": "Get e-invoicing and tax requirements for a specific country" },
-    { "name": "list_invoices", "description": "List invoices previously submitted through Clearvo" },
-    { "name": "get_invoice", "description": "Fetch complete detail for a single invoice" },
-    { "name": "list_products", "description": "List the product catalogue for an entity" },
-    { "name": "create_product", "description": "Create a product in the catalogue with a pre-classified tax category" },
-    { "name": "update_product", "description": "Update a product, most commonly its tax category" },
-    { "name": "list_webhooks", "description": "List registered webhook endpoints" },
-    { "name": "create_webhook", "description": "Register a webhook endpoint for invoice status events" },
-    { "name": "delete_webhook", "description": "Deactivate a webhook endpoint" },
-    { "name": "list_registrations", "description": "List tax registrations and obligations for an entity" },
-    { "name": "add_registration", "description": "Record a new tax registration for an entity" },
-    { "name": "set_registration_collection", "description": "Set the date from which a tax registration starts collecting tax" },
-    { "name": "list_tax_calculations", "description": "List committed tax calculations" },
-    { "name": "get_setup_status", "description": "Check account setup/onboarding status" },
-    { "name": "get_tax_settings", "description": "Get tax settings for an entity" },
-    { "name": "update_tax_settings", "description": "Update tax settings for an entity" }
-  ],
+  "tools": [],
   "user_config": {
     "api_key": {
       "type": "string",
