@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "clearvo": {
+      "command": "npx",
+      "args": ["-y", "@clearvo/mcp"],
+      "env": {
+        "CLEARVO_API_KEY": "${user_config.api_key}",
+        "CLEARVO_ENTITY_ID": "${user_config.entity_id}"
+      }
+    }
+  }
+}

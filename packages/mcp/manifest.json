@@ -1,0 +1,49 @@
+{
+  "manifest_version": "0.3",
+  "name": "clearvo",
+  "display_name": "Clearvo",
+  "version": "0.2.0",
+  "description": "Submit e-invoices, calculate global tax (VAT/GST/sales tax), and validate tax numbers via the Clearvo API",
+  "long_description": "Connects Claude to the Clearvo tax compliance API. Submit B2B e-invoices to national tax authorities (SDI, KSeF, ANAF, SII, NAV, myDATA, Peppol, and more), calculate VAT/GST/sales tax across 100+ countries, and validate business tax numbers against official registries (VIES, HMRC, ABN Lookup, and others). Requires a free Clearvo account — create one at https://app.clearvo.io/register.",
+  "author": {
+    "name": "Clearvo",
+    "url": "https://clearvo.io"
+  },
+  "homepage": "https://clearvo.io",
+  "documentation": "https://clearvo.io/docs/claude-code",
+  "support": "https://clearvo.io/docs",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/fergalg/clearvo-js"
+  },
+  "keywords": ["tax", "vat", "gst", "sales-tax", "einvoicing", "compliance", "clearvo"],
+  "server": {
+    "type": "node",
+    "entry_point": "server/index.js",
+    "mcp_config": {
+      "command": "node",
+      "args": ["${__dirname}/server/index.js"],
+      "env": {
+        "CLEARVO_API_KEY": "${user_config.api_key}",
+        "CLEARVO_ENTITY_ID": "${user_config.entity_id}"
+      }
+    }
+  },
+  "tools": [],
+  "user_config": {
+    "api_key": {
+      "type": "string",
+      "title": "Clearvo API Key",
+      "description": "From app.clearvo.io/settings — starts with csk_live_ or csk_test_",
+      "sensitive": true,
+      "required": true
+    },
+    "entity_id": {
+      "type": "string",
+      "title": "Entity ID (optional)",
+      "description": "Only needed with an account-scoped API key operating across multiple entities. Leave blank for entity-scoped keys, or run list_entities to find it.",
+      "sensitive": false,
+      "required": false
+    }
+  }
+}

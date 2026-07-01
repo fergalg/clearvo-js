@@ -8,7 +8,31 @@ Developer tools for the [Clearvo](https://clearvo.io) tax compliance API.
 | [`@clearvo/mcp`](./packages/mcp) | MCP server for Claude Code, Cursor, Windsurf |
 | [`@clearvo/cli`](./packages/cli) | CLI — `npx clearvo` |
 
-## MCP server (Claude Code / Cursor / Windsurf)
+## MCP server (Claude Code / Claude Desktop / Cursor / Windsurf)
+
+Three ways to connect, from least to most manual setup:
+
+### Claude Desktop Extension (one click, no config editing)
+
+Requires a clone of this repo (the build script and manifest aren't published to npm — installing `@clearvo/mcp` alone won't include them):
+
+```bash
+git clone https://github.com/fergalg/clearvo-js && cd clearvo-js
+npm install && cd packages/mcp && npm run build:mcpb
+```
+
+This produces `packages/mcp/clearvo-<version>.mcpb`. Double-click it (or drag it onto Claude Desktop) — Desktop shows an install dialog with a form for your API key instead of asking you to hand-edit JSON. Desktop-only; not read by Claude Code, Cursor, or Windsurf.
+
+### Claude Code plugin
+
+```
+/plugin marketplace add fergalg/clearvo-js
+/plugin install clearvo@clearvo
+```
+
+Claude Code prompts for your API key (stored in the system keychain, never written to `settings.json`) and wires up the MCP server automatically.
+
+### Manual (Claude Code / Cursor / Windsurf)
 
 Add to `~/.claude/settings.json`:
 
@@ -28,7 +52,7 @@ Add to `~/.claude/settings.json`:
 
 Then ask Claude: *"Submit a test invoice for €1,000 to Acme SpA (IT12345678901) for software licence Q3"*
 
-**Available tools**: `submit_invoice`, `poll_status`, `calculate_tax`, `validate_tax_number`, `list_entities`, `create_entity`, `get_requirements`, `list_invoices`
+**Available tools**: `submit_invoice`, `poll_status`, `calculate_tax`, `validate_tax_number`, `validate_tax_numbers_batch`, `list_entities`, `create_entity`, `get_requirements`, `list_invoices`, `get_invoice`, `list_products`, `create_product`, `update_product`, `list_webhooks`, `create_webhook`, `delete_webhook`, `list_registrations`, `add_registration`, `set_registration_collection`, `list_tax_calculations`, `get_setup_status`, `get_tax_settings`, `update_tax_settings`
 
 ## TypeScript SDK
 

@@ -1,0 +1,16 @@
+{
+  "name": "clearvo",
+  "owner": {
+    "name": "Clearvo"
+  },
+  "description": "Clearvo tax compliance tools for Claude Code — submit e-invoices, calculate tax, validate tax numbers",
+  "plugins": [
+    {
+      "name": "clearvo",
+      "source": "./packages/claude-code-plugin",
+      "description": "Submit e-invoices, calculate global tax (VAT/GST/sales tax), and validate tax numbers via the Clearvo API",
+      "homepage": "https://clearvo.io",
+      "keywords": ["tax", "vat", "gst", "sales-tax", "einvoicing", "compliance"]
+    }
+  ]
+}
