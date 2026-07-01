@@ -8,9 +8,9 @@ import {
 import { createHash } from 'crypto';
 
 // White-label tenants get their own branded env var names instead of CLEARVO_*.
-// CLEARVO_API_KEY always wins if set; otherwise the first matching tenant alias is used,
-// including that tenant's own API base URL (tenant isolation on the backend rejects a
-// tenant-scoped key sent to another tenant's hostname, so the base URL must follow the key).
+// CLEARVO_API_KEY always wins if set; otherwise the first matching tenant alias is used.
+// The public API itself is not white-labeled yet — there is no separate api.taxually.com
+// (it doesn't resolve) — every tenant's keys call the same shared api.clearvo.io surface.
 interface WhitelabelTenant {
   apiKeyEnv: string;
   entityIdEnv: string;
@@ -18,7 +18,7 @@ interface WhitelabelTenant {
 }
 
 const WHITELABEL_TENANTS: WhitelabelTenant[] = [
-  { apiKeyEnv: 'TAXUALLY_API_KEY', entityIdEnv: 'TAXUALLY_ENTITY_ID', baseUrl: 'https://api.taxually.com/v1' },
+  { apiKeyEnv: 'TAXUALLY_API_KEY', entityIdEnv: 'TAXUALLY_ENTITY_ID', baseUrl: 'https://api.clearvo.io/v1' },
 ];
 
 function resolveCredentials(): { apiKey: string | undefined; entityId: string | undefined; baseUrl: string } {

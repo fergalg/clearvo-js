@@ -49,7 +49,7 @@
     "base_url": {
       "type": "string",
       "title": "API Base URL (optional)",
-      "description": "Only change this if your account is on a white-label tenant — e.g. https://api.taxually.com/v1 for a Taxually-branded account. Leave as the default for app.clearvo.io accounts.",
+      "description": "The public API is not white-labeled yet — every account, including Taxually-branded ones, uses the default. Leave this as-is unless support tells you otherwise.",
       "default": "https://api.clearvo.io/v1",
       "sensitive": false,
       "required": false
