@@ -1,0 +1,46 @@
+name: Release Desktop Extension
+
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - run: npm install
+
+      - name: Build .mcpb
+        working-directory: packages/mcp
+        run: npm run build:mcpb
+
+      - name: Read package version
+        id: pkg
+        working-directory: packages/mcp
+        run: echo "version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
+
+      - name: Stage release assets
+        working-directory: packages/mcp
+        run: cp "clearvo-${{ steps.pkg.outputs.version }}.mcpb" clearvo.mcpb
+
+      - name: Publish release
+        working-directory: packages/mcp
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: mcp-v${{ steps.pkg.outputs.version }}
+        run: |
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" "clearvo-${{ steps.pkg.outputs.version }}.mcpb" clearvo.mcpb --clobber
+          else
+            gh release create "$TAG" "clearvo-${{ steps.pkg.outputs.version }}.mcpb" clearvo.mcpb \
+              --title "@clearvo/mcp v${{ steps.pkg.outputs.version }} — Desktop Extension" \
+              --notes "Claude Desktop Extension for @clearvo/mcp v${{ steps.pkg.outputs.version }}. Double-click \`clearvo.mcpb\` to install in Claude Desktop."
+          fi
