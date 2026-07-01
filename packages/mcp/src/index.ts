@@ -7,20 +7,54 @@ import {
 } from '@modelcontextprotocol/sdk/types.js';
 import { createHash } from 'crypto';
 
-const API_KEY = process.env.CLEARVO_API_KEY;
-const ENTITY_ID = process.env.CLEARVO_ENTITY_ID;
-const BASE_URL = process.env.CLEARVO_BASE_URL ?? 'https://api.clearvo.io/v1';
+// White-label tenants get their own branded env var names instead of CLEARVO_*.
+// CLEARVO_API_KEY always wins if set; otherwise the first matching tenant alias is used,
+// including that tenant's own API base URL (tenant isolation on the backend rejects a
+// tenant-scoped key sent to another tenant's hostname, so the base URL must follow the key).
+interface WhitelabelTenant {
+  apiKeyEnv: string;
+  entityIdEnv: string;
+  baseUrl: string;
+}
+
+const WHITELABEL_TENANTS: WhitelabelTenant[] = [
+  { apiKeyEnv: 'TAXUALLY_API_KEY', entityIdEnv: 'TAXUALLY_ENTITY_ID', baseUrl: 'https://api.taxually.com/v1' },
+];
+
+function resolveCredentials(): { apiKey: string | undefined; entityId: string | undefined; baseUrl: string } {
+  if (process.env.CLEARVO_API_KEY) {
+    return {
+      apiKey: process.env.CLEARVO_API_KEY,
+      entityId: process.env.CLEARVO_ENTITY_ID,
+      baseUrl: process.env.CLEARVO_BASE_URL ?? 'https://api.clearvo.io/v1',
+    };
+  }
+  for (const tenant of WHITELABEL_TENANTS) {
+    const apiKey = process.env[tenant.apiKeyEnv];
+    if (apiKey) {
+      return {
+        apiKey,
+        entityId: process.env[tenant.entityIdEnv],
+        baseUrl: process.env.CLEARVO_BASE_URL ?? tenant.baseUrl,
+      };
+    }
+  }
+  return { apiKey: undefined, entityId: undefined, baseUrl: process.env.CLEARVO_BASE_URL ?? 'https://api.clearvo.io/v1' };
+}
+
+const { apiKey: API_KEY, entityId: ENTITY_ID, baseUrl: BASE_URL } = resolveCredentials();
 
 if (!API_KEY) {
   process.stderr.write(
-    'Warning: CLEARVO_API_KEY is not set — tools will return a configuration error until it is.\n' +
-    'Add CLEARVO_API_KEY to your MCP server env config. Get a key at https://app.clearvo.io/settings\n'
+    'Warning: no API key is configured — tools will return a configuration error until one is set.\n' +
+    'Add CLEARVO_API_KEY (or TAXUALLY_API_KEY for Taxually-branded accounts) to your MCP server env config. ' +
+    'Get a key at https://app.clearvo.io/settings\n'
   );
 }
 if (!ENTITY_ID) {
   process.stderr.write(
-    'Warning: CLEARVO_ENTITY_ID is not set — operations that require an entity context will fail.\n' +
-    'Add CLEARVO_ENTITY_ID to your MCP server env config, or use an entity-scoped API key.\n' +
+    'Warning: no entity ID is configured — operations that require an entity context will fail.\n' +
+    'Add CLEARVO_ENTITY_ID (or TAXUALLY_ENTITY_ID) to your MCP server env config, or use an entity-scoped API key.\n' +
     'Run the list_entities tool to find your entity ID.\n'
   );
 }
@@ -33,7 +67,7 @@ async function callApi(
 ): Promise<unknown> {
   if (!API_KEY) {
     throw new Error(
-      'CLEARVO_API_KEY is not configured. Add it to your MCP server env and restart. ' +
+      'No API key is configured. Add CLEARVO_API_KEY (or TAXUALLY_API_KEY) to your MCP server env and restart. ' +
       'Get a key at https://app.clearvo.io/settings'
     );
   }
@@ -56,7 +90,7 @@ async function callApi(
     if (res.status === 400 && errorText.toLowerCase().includes('entity context')) {
       throw new Error(
         'This operation requires an entity context. ' +
-        'Set CLEARVO_ENTITY_ID in your MCP server env config, or use an entity-scoped API key. ' +
+        'Set CLEARVO_ENTITY_ID (or TAXUALLY_ENTITY_ID) in your MCP server env config, or use an entity-scoped API key. ' +
         'Run the list_entities tool to find your entity ID, then add it to the env config and restart.'
       );
     }
